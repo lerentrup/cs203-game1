@@ -254,3 +254,13 @@ public class Field extends World{
          
     }
 }
+
+public class FieldTests {
+    
+    public static void main(String[] argv){
+
+	Field f = new Field();
+    	f.bigBang(400, 800, 0.1);
+    
+} 
+}
