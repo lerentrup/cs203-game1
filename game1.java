@@ -123,65 +123,45 @@ public class Tetrimino {
            return new Yellow();
    }    
    
-   public static int randomSize(){
-       int r = (int) (Math.random() * 100);
-       
-       if(r < 25)
-           return 15;
-       else if (r < 50)
-           return 20;  
-       else if (r < 75)
-           return 25; 
-       else 
-           return 30;
-   }
+
 }
-//Pos class that extends the Posn class (to add collidability)
+//Pos class that extends the Posn class  (to check for positions ahead)
 public class Pos extends Posn{
-    
-    boolean collidable;
     
     Pos(int x, int y){
         super(x, y);
-        collidable = false;
+     }
+    
+   public Pos yPositionAhead(){
+        return new Pos(this.x, this.y + 20);
     }
     
-    Pos(int x, int y, boolean c){
-        super(x, y);
-        collidable = c;
+     public boolean isEqual(Pos p){
+        return(this.x == p.x && this.y == p.y);
     }
-    
-    public Pos nowCollidable(){
-        collidable = true;
-        return new Pos(this.x, this.y);
-    }
-    
-    public boolean isCollidable(){
-        return collidable;
-    }
-    
-    public int posAhead(){
-        return this.y + 11;
-    }
-    
-    public Pos positionAhead(){
-        return new Pos(this.x, this.y + 11);
-    }
-    
-}
+ }
 
 //Field class that represents the game world (extends the World from GameWorlds)
 
 public class Field extends World{
     
     Tetrimino mino;
-    Tetrimino deadmino;
+
     Tetrimino newmino;
     WorldImage h;
+    public CollidableArray collidablePosns = new CollidableArray();
     
+
     public Field(){
         super();
         this.mino = new Tetrimino(new Pos(200, 10), 20, new Red());
+        for(int y = 1; y < 801; y++){
+            collidablePosns.add(new Pos(0, y));
+            collidablePosns.add(new Pos(400, y));}
+        for(int x = 1; x < 400; x++)
+            collidablePosns.add(new Pos(x, 800));
+        
+        collidablePosns.add(new Pos(200,400));
         
     }
     
@@ -189,70 +169,103 @@ public class Field extends World{
         return new Field(t);
     }
     
-    public Field(Tetrimino t){
-        super();
-        this.mino = t;
-}
-        
-    WorldImage backGround=
+    OverlayImages backGround=
         new OverlayImages(new RectangleImage(new Pos(200, 400), 400, 800, Color.LIGHT_GRAY),
 		new OverlayImages(new LineImage(new Pos(100, 0), new Pos(100, 800), new Black()),
                         new OverlayImages(new LineImage(new Pos(200, 0), new Pos(200, 800), new Black()),
                              new OverlayImages (new LineImage(new Pos(300, 0), new Pos(300, 800), new Black()),
-                                    new RectangleImage(new Pos(200, 401, true), 20, 20, Color.ORANGE)))));
+                                    new RectangleImage(new Pos(200, 400), 20, 20, Color.ORANGE)))));;
+    
+    public Field(Tetrimino t){
+        super();
+        this.mino = t;
+
+    }
+     public Field(Tetrimino t, OverlayImages w){
+        super();
+        this.mino = t;
+        backGround = w;    }
+    
+    public ArrayList getCollidablePosns(){
+        return collidablePosns;
+    }
     
    
-    
-    public World onKeyEvent(String key) {
-        return new Field(this.mino.moveTetrimino(key));
+     public World onKeyEvent(String key) {
+        
+        return new Field(this.mino.moveTetrimino(key), backGround);
 	}
     
     public World onTick(){
         
-        //System.out.println(this.mino.posn.y);
-        
-        if(!this.mino.moving /**&& this.mino.posn.y < 600 **/){
-            this.mino.posn.collidable = true;
+        if(collidablePosns.contains(new Pos(200,400)))
+            System.out.println("CONTAINS 400 200");
             
-            deadmino = mino;
-            System.out.println(deadmino.toString());
-            this.makeImage();
-            this.mino = new Tetrimino(new Pos(200, 10), game1.Tetrimino.randomSize(), game1.Tetrimino.randomColor());
+        //I don't know why this isn't working. yPositionAhead() should detect the test position ahead and do this case    
+        // but it isn't!
+        Pos p = mino.posn.yPositionAhead();
+        System.out.println("Equals: " + p.isEqual(new Pos(200,400)));
+        System.out.println("Contains: " + collidablePosns.contains(p));
+        if(collidablePosns.contains(p)){
+            System.out.println("AT SECOND CASE!");
+            collidablePosns.add(mino.posn);
+            backGround = new OverlayImages(backGround, mino.tetriminoImage());
+            this.mino = new Tetrimino(new Pos(200, 10), 20, game1.Tetrimino.randomColor());
             return new Field(this.mino.minoDownShift());
         }
         
+        else if(this.mino.atEndHuh() && this.mino.posn.y > 600){
+            System.out.println("AT FIRST CASE!");
+            collidablePosns.add(mino.posn);
+    
+            System.out.println(collidablePosns.toString());
+            backGround = new OverlayImages(backGround, mino.tetriminoImage());
+  
+            this.mino = new Tetrimino(new Pos(200, 10), 20, game1.Tetrimino.randomColor());
+            return new Field(this.mino.minoDownShift(), backGround);
+        }
+                
         else if(!this.mino.moving){
             this.worldEnds();            
         }
-      return new Field(this.mino.minoDownShift());
+        return new Field(this.mino.minoDownShift(), backGround);
     }
 
-   public WorldImage buryMino(){
-       return new OverlayImages(this.backGround, (new RectangleImage (this.mino.posn, this.mino.side, this.mino.side, this.mino.col)));
-   } 
    
     public WorldImage makeImage(){        
         if(!mino.moving && this.mino.posn.y > 600){
-            System.out.println("AYYYYYYYYYYYYYYY LMAO");
                 Pos temp_pos = this.mino.posn;
 		return new OverlayImages(this.backGround, (new OverlayImages(new RectangleImage(temp_pos, this.mino.side, this.mino.side, this.mino.col), this.mino.tetriminoImage())));}
         return new OverlayImages(this.backGround, this.mino.tetriminoImage());
 	}
-    
-    public WorldImage lastImage(String s){
-        Pos temp_pos = this.mino.posn;
-        return new OverlayImages(this.backGround, 
-                (new OverlayImages
-        (new RectangleImage (temp_pos, this.mino.side, this.mino.side, this.mino.col), this.mino.tetriminoImage())));
-    }
-    
+       
     public WorldEnd worldEnds(){
          if(!this.mino.moving && this.mino.posn.y > 600)
              return new WorldEnd(false, this.buryMino());
          else
              return new WorldEnd(false, this.makeImage());
-         
+        
     }
+}
+
+// The collidableArray class- this was so I could confirm the functionality of the collidable positions process
+
+public class CollidableArray extends ArrayList{
+    
+    CollidableArray(){
+        super();
+    }
+    
+    public boolean contains(Pos p){
+        int i = 0;
+        while(i < this.size()){
+        if(((Pos)(this.get(i))).isEqual(p))
+            return true;
+        else
+            i = i + 1;}
+        return false;
+    }
+    
 }
 
 public class FieldTests {
